@@ -1,2 +1,4 @@
 parser
 main.o
+*.caff
+test.txt
