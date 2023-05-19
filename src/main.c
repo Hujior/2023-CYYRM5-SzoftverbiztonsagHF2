@@ -6,6 +6,7 @@
 uint8_t* file_buffer;
 long fb_size;
 long curr_index = 0;
+char* FileName;
 
 // segéd fügvény deklarációk
 uint64_t bytes_to_int(int index);
@@ -22,6 +23,19 @@ int webp_parser(int w, int h)
     {
         return -1;
     }
+
+    FILE* fwebp;
+    fwebp = fopen(strcat(FileName, ".webp"), "wb" );
+
+    if(fwebp == NULL)
+    {
+        WebPFree(*out);
+        return -1;
+    }
+
+    fputs(*out, fwebp);
+    WebPFree(*out);
+    fclose(fwebp);
     
     return 0;
 }
@@ -31,6 +45,7 @@ int read_file(char* fileName)
 {
     FILE* fptr;
     fptr = fopen(fileName, "rb");
+    FileName = fileName;
 
     if(fptr == NULL)
     {
