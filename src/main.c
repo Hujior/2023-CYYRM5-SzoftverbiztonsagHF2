@@ -11,16 +11,17 @@ long curr_index = 0;
 uint64_t bytes_to_int(int index);
 int parse_caff_header();
 int parse_caff_credits();
-int arse_caff_animation();
+int parse_caff_animation();
 
 
 int webp_parser(uint8_t* rgb, int w, int h, int s, int q)
 {
-    //const uint8_t* rgb;
-    //int w, h, s, q = 0;
     //uint8_t** out;
-    //size_t t = WebPEncodeRGB(rgb, w, h, s, q, out);
-    //printf("the return: %ld\n", t);
+    //if(WebPEncodeRGB(rgb, w, h, s, q, out) == 0)
+    //{
+    //    return -1;
+    //}
+    
     return 0;
 }
 
@@ -59,23 +60,22 @@ int caffParser(char* fileName)
         return -1;
     }
 
-    int ret = 0;
-    while(curr_index < fb_size)
-    {
-        // a block ID értéke alapján szétválasztom
-        // switch statement arra az esetre, ha más sorrendben követnék egymást a blokkok
-        switch(file_buffer[curr_index])
-        {
-        case 1: ret = parse_caff_header(); break;
-        case 2: ret = parse_caff_credits(); break;
-        case 3: ret = arse_caff_animation(); break;
-        }
 
-        if(ret == -1)
-        {
-            return -1;
-        }
+    if(parse_caff_header() == -1)
+    {
+        return -1;
     }
+
+    if(parse_caff_credits() == -1)
+    {
+        return -1;
+    }
+
+    if(parse_caff_animation() == -1)
+    {  
+        return -1;
+    }
+
 
     return 0;
     
@@ -95,7 +95,7 @@ int ciffParser(char* fileName)
     int q;
 
 
-    webp_parser(file_buffer[curr_index], width, height, s, q);
+    //return webp_parser(file_buffer[curr_index], width, height, s, q);
 
     return 0;
 }
@@ -142,20 +142,31 @@ int main(int argc, char** argv)
 
 int parse_caff_header()
 {
+    uint8_t block_id = file_buffer[curr_index];
     long block_start = curr_index;
     long block_lenght = bytes_to_int(curr_index + 1);
     curr_index = curr_index + 9; // átugrom a 8 bájtos számot
+    
     uint8_t magic[4];
     magic[0] = file_buffer[curr_index];
     magic[1] = file_buffer[curr_index+1];
     magic[2] = file_buffer[curr_index+2];
     magic[3] = file_buffer[curr_index+3];
     curr_index = curr_index + 4;
+    
     long header_size = bytes_to_int(curr_index);
     curr_index = curr_index + 9;
+    
     long num_anim = bytes_to_int(curr_index);
     curr_index = curr_index + 9;
+    
     long block_end = curr_index - 1;
+
+    //block tipus ellenőrzés
+    if(block_id != 1)
+    {
+        return -1;
+    }
 
     //block méret ellenőrzés
     if((block_end - (block_start + 9)) != block_lenght)
@@ -182,15 +193,61 @@ int parse_caff_header()
 
     
 }
+
+//------------------------------------------------------------------------------
 int parse_caff_credits()
 {
-    return -1; //TODO
+    uint8_t block_id = file_buffer[curr_index];
+    long block_start = curr_index;
+    long block_lenght = bytes_to_int(curr_index + 1);
+    curr_index = curr_index + 9;
+
+    uint8_t yy[2];
+    yy[0] = file_buffer[curr_index];
+    yy[1] = file_buffer[curr_index + 1];
+    uint8_t M = file_buffer[curr_index + 2];
+    uint8_t D = file_buffer[curr_index + 3];
+    uint8_t h = file_buffer[curr_index + 4];
+    uint8_t m = file_buffer[curr_index + 5];
+    curr_index = curr_index + 6;
+    
+    int creator_lenght = bytes_to_int(curr_index);
+    curr_index = curr_index + 9;
+
+    uint8_t* creator = (uint8_t*)malloc(creator_lenght * sizeof(uint8_t));
+    for(int i = 0; i < creator_lenght; i++)
+    {
+        creator[i] = file_buffer[curr_index + i];
+    }
+    free(creator); // a háziban nem csinálunk semmit az adatokkal
+    curr_index = curr_index + creator_lenght;
+
+    long block_end = curr_index - 1;
+
+    //block tipus ellenőrzés
+    if(block_id != 2)
+    {
+        return -1;
+    }
+
+    //block méret ellenőrzés
+    if((block_end - (block_start + 9)) != block_lenght)
+    {
+        return -1;
+    }
+
+    return 0;
+
 }
-int arse_caff_animation()
+
+//---------------------------------------------------------------
+int parse_caff_animation()
 {
     return -1; //TODO
 }
 
+
+//---------------------------------------------------------------------
 uint64_t bytes_to_int(int index)
 {
     //printf("%02X%02X%02X%02X%02X%02X%02X%02X\n", file_buffer[index], file_buffer[index + 1], file_buffer[index + 2], file_buffer[index + 3], file_buffer[index + 4], file_buffer[index + 5], file_buffer[index + 6], file_buffer[index + 7]);
