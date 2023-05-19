@@ -7,20 +7,21 @@ uint8_t* file_buffer;
 long fb_size;
 long curr_index = 0;
 
-// fügvény deklarációk
+// segéd fügvény deklarációk
 uint64_t bytes_to_int(int index);
 int parse_caff_header();
 int parse_caff_credits();
 int parse_caff_animation();
 
 
-int webp_parser(uint8_t* rgb, int w, int h, int s, int q)
+int webp_parser(int w, int h)
 {
-    //uint8_t** out;
-    //if(WebPEncodeRGB(rgb, w, h, s, q, out) == 0)
-    //{
-    //    return -1;
-    //}
+    const uint8_t* rgbp = file_buffer + curr_index;
+    uint8_t** out;
+    if(WebPEncodeRGB(rgbp, w, h, 0, 50, out) == 0)
+    {
+        return -1;
+    }
     
     return 0;
 }
@@ -82,22 +83,85 @@ int caffParser(char* fileName)
 }
 
 //----------------------------------------------------------
-int ciffParser(char* fileName)
+int ciffParser(char* fileName, int isCalledFromCAFF)
 {
-    if(read_file(fileName) == -1)
+    if(!isCalledFromCAFF)
     {
-        return -1;
+        if(read_file(fileName) == -1)
+        {
+            return -1;
+        }
     }
 
     int width;
     int height;
-    int s;
-    int q;
 
+    uint8_t magic[4];
+    magic[0] = file_buffer[curr_index];
+    magic[1] = file_buffer[curr_index + 1];
+    magic[2] = file_buffer[curr_index + 2];
+    magic[3] = file_buffer[curr_index + 3];
+    curr_index = curr_index + 4;
+    
+    int header_size = bytes_to_int(curr_index);
+    curr_index = curr_index + 9;
 
-    //return webp_parser(file_buffer[curr_index], width, height, s, q);
+    int content_size = bytes_to_int(curr_index);
+    curr_index = curr_index + 9;
 
-    return 0;
+    width = bytes_to_int(curr_index);
+    curr_index = curr_index + 9;
+
+    height = bytes_to_int(curr_index);
+    curr_index = curr_index + 9;
+
+    int i = curr_index;
+    while(file_buffer[i] != 10) // 0A = \n
+    {
+        i++;
+    }
+
+    int caption_size = i - curr_index;
+
+    char* caption = (char*)malloc(caption_size * sizeof(char));
+
+    for(int i = 0; i < caption_size; i++)
+    {
+        caption[i] = file_buffer[curr_index + i];
+    }
+    free(caption); // a feladatban nem csinálunk semmit az adatokkal
+
+    int hg = 0; // header_size határ figyelő
+    int tn = 0; // tag számláló
+    int j = curr_index; // futó változó
+    char** tags;
+    while(hg < (header_size - (36 + caption_size))) // fix + dinamikus méretek a headerben korábban
+    {
+        while(file_buffer[j] != 0) // 00 = \0
+        {
+            hg++;
+            j++;
+        }
+
+        tags[tn] = (char*)malloc((j - curr_index) * sizeof(char));
+        for(int i = 0; i < (j - curr_index); i++)
+        {
+            *(tags[tn]) = file_buffer[curr_index + i];
+        }
+
+        tn++;
+        curr_index = curr_index + hg + 1;
+        j = curr_index;
+    }
+
+    for(int i = 0; i < tn; i++) // a feladatban nem csinálunk semmit az adatokkal
+    {
+        free(tags[i]);
+    }
+    free(tags);
+
+    return webp_parser(width, height);
+
 }
 
 //-------------------------------------------------------------
@@ -120,7 +184,7 @@ int main(int argc, char** argv)
 
     if(0 == strcmp(argv[1], "-ciff")) 
     {
-        ret = ciffParser(argv[2]);
+        ret = ciffParser(argv[2], 0);
     }
     else if(0 == strcmp(argv[1], "-caff"))
     {
@@ -243,7 +307,15 @@ int parse_caff_credits()
 //---------------------------------------------------------------
 int parse_caff_animation()
 {
-    return -1; //TODO
+    uint8_t block_id = file_buffer[curr_index];
+    long block_start = curr_index;
+    long block_lenght = bytes_to_int(curr_index + 1);
+    curr_index = curr_index + 9;
+
+    long duration = bytes_to_int(curr_index);
+    curr_index = curr_index + 9;
+
+    return ciffParser(NULL, 1); // a CAFF-ból hívásnál nem kell a fájlnév
 }
 
 
