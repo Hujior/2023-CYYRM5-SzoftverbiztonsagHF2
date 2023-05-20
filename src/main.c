@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "../include/libwebp/encode.h"
 
+// globális változók
 uint8_t* file_buffer;
 long fb_size;
 long curr_index = 0;
@@ -15,6 +16,7 @@ int parse_caff_credits();
 int parse_caff_animation();
 
 
+//-------------------------------------------------------
 int webp_parser(int w, int h)
 {
     const uint8_t* rgbp = file_buffer + curr_index;
@@ -175,7 +177,33 @@ int ciffParser(char* fileName, int isCalledFromCAFF)
     }
     free(tags);
 
-    return webp_parser(width, height);
+    // magic ellenőrzés
+    int magic_ok = 0; 
+    if(magic[0] == 'C')
+    {
+        if(magic[1] == 'I')
+        {
+            if(magic[2] == 'F')
+            {
+                if(magic[3] == 'F')
+                {
+                    magic_ok = 1;
+                }
+            }
+        }
+    }
+    
+
+    // méret ellenőrzés
+    if(magic_ok)
+    {
+        if(content_size == (width * height * 3))
+        {
+            return webp_parser(width, height);
+        }
+    }
+
+    return -1;
 
 }
 
@@ -184,13 +212,13 @@ int main(int argc, char** argv)
 {
 
     int ret = 0;
-    // error if there is more or less input parameters
+    // hiba ha több vagy kevesebb input paraméter van
     if(argc != 3)
     {
         return -1;
     }
 
-    // error if the first parameter wants to be bigger than allowed (protcting strcmp)
+    // hiba ha az első paraméter nagyobb mint a megengedett (strcmp védelme)
     if(strlen(argv[1]) > 6)
     {
         return -1;
@@ -337,8 +365,7 @@ int parse_caff_animation()
 //---------------------------------------------------------------------
 uint64_t bytes_to_int(int index)
 {
-    //printf("%02X%02X%02X%02X%02X%02X%02X%02X\n", file_buffer[index], file_buffer[index + 1], file_buffer[index + 2], file_buffer[index + 3], file_buffer[index + 4], file_buffer[index + 5], file_buffer[index + 6], file_buffer[index + 7]);
-
+    
     return (uint64_t)file_buffer[index] 
     | (uint64_t)(file_buffer[index + 1] << 8)
     | ((uint64_t)file_buffer[index + 2] << 16) 
